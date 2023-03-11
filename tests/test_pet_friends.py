@@ -1,6 +1,7 @@
+import os
+
 from api import PetFriends
 from settings import valid_email, valid_password
-import os
 
 pf = PetFriends()
 
@@ -88,3 +89,113 @@ def test_successful_update_self_pet_info(name='Мурзик', animal_type='Ко�
     else:
         # если спиок питомцев пустой, то выкидываем исключение с текстом об отсутствии своих питомцев
         raise Exception("There is no my pets")
+
+
+def test_post_new_friends_1(name='Smuffy', animal_type='cat', age='1', pet_photo='images/cat1.jpg'):
+    """Проверяем что можно добавить питомца с корректными данными (по кличке)"""
+
+    # Получаем полный путь изображения питомца и сохраняем в переменную pet_photo
+    pet_photo = os.path.join(os.path.dirname(__file__), pet_photo)
+    # Запрашиваем ключ api и сохраняем в переменую auth_key
+    _, auth_key = pf.get_api_key(valid_email, valid_password)
+    # Добавляем питомца
+    status, result = pf.add_new_pet(auth_key, name, animal_type, age, pet_photo)
+    # Сверяем полученный ответ с ожидаемым результатом
+    assert status == 200
+    assert result['name'] == name
+
+
+def test_post_new_friends_2(name='Smuffy', animal_type='cat', age='1', pet_photo='images/cat1.jpg'):
+    """Проверяем что можно добавить питомца с корректными данными (по типу)"""
+    pet_photo = os.path.join(os.path.dirname(__file__), pet_photo)
+    _, auth_key = pf.get_api_key(valid_email, valid_password)
+    status, result = pf.add_new_pet(auth_key, name, animal_type, age, pet_photo)
+    assert status == 200
+    assert result['animal_type'] == animal_type
+
+
+def test_post_new_friends_3(name='Smuffy', animal_type='cat', age='1', pet_photo='images/cat1.jpg'):
+    """Проверяем что можно добавить питомца с корректными данными (по возрасту)"""
+    pet_photo = os.path.join(os.path.dirname(__file__), pet_photo)
+    _, auth_key = pf.get_api_key(valid_email, valid_password)
+    status, result = pf.add_new_pet(auth_key, name, animal_type, age, pet_photo)
+    assert status == 200
+    assert result['age'] == age
+
+
+def test_post_new_friends_4(name='Smuffy', animal_type='cat', age='1', pet_photo='images/cat1.jpg'):
+    """Проверяем что можно добавить питомца с корректными данными (по фото)"""
+    pet_photo = os.path.join(os.path.dirname(__file__), pet_photo)
+    _, auth_key = pf.get_api_key(valid_email, valid_password)
+    status, result = pf.add_new_pet(auth_key, name, animal_type, age, pet_photo)
+    assert status == 200
+    assert result['pet_photo'] != pet_photo
+
+
+def test_delete_pet_5(name='Smuffy', animal_type='cat', age=1):
+    """Проверяем возможность удаления клички питомца"""
+    _, auth_key = pf.get_api_key(valid_email, valid_password)
+    _, my_pets = pf.get_list_of_pets(auth_key, "my_pets")
+    pet_id = my_pets['pets'][0]['id']
+    status, _ = pf.update_pet_info(auth_key, my_pets['pets'][0]['id'], name, animal_type, age)
+    _, my_pets = pf.get_list_of_pets(auth_key, "my_pets")
+    assert status == 200
+    assert name not in pet_id
+
+
+def test_delete_pet_6(name='Smuffy', animal_type='cat', age=1):
+    """Проверяем возможность удаления type питомца"""
+    _, auth_key = pf.get_api_key(valid_email, valid_password)
+    _, my_pets = pf.get_list_of_pets(auth_key, "my_pets")
+    pet_id = my_pets['pets'][0]['id']
+    status, _ = pf.update_pet_info(auth_key, my_pets['pets'][0]['id'], name, animal_type, age)
+    _, my_pets = pf.get_list_of_pets(auth_key, "my_pets")
+    assert status == 200
+    assert animal_type not in pet_id
+
+
+def test_get_api_key_for_invalid_user_7():
+    """Проверяем возможность входа под незарегистрированными данными"""
+    status, result = pf.get_api_key('iwueyriuq@seiuy.ru', 'siufhkushf')
+    assert status == 403
+
+
+def test_set_my_pet_photo_valid_8(name='Smuffy', animal_type='cat', age='1', pet_photo='images/cat1.jpg'):
+    """Проверяем возможность добавления фото"""
+    _, auth_key = pf.get_api_key(valid_email, valid_password)
+    status, result = pf.get_list_of_pets(auth_key, filter='my_pets')
+
+    if len(result['pets']) > 0:
+        status, result = pf.set_photo_pet(auth_key, result['pets'][0]['id'], pet_photo)
+    else:
+        _, result = pf.add_new_pet(auth_key, name, animal_type, age, pet_photo)
+        status, result = pf.set_photo_pet(auth_key, result['pets'][0]['id'], pet_photo)
+    assert status == 200
+    assert result['id']
+
+
+def test_set_other_pet_photo_invalid_9(name='Smuffy', animal_type='cat', age='1', pet_photo='images/cat1.jpg'):
+    """Проверяем возможность добавления фото к другому питомцу"""
+    _, auth_key = pf.get_api_key(valid_email, valid_password)
+    status, result = pf.get_list_of_pets(auth_key, filter='')
+
+    if len(result['pets']) > 0:
+        status, result = pf.set_photo_pet(auth_key, result['pets'][0]['id'], pet_photo)
+    else:
+        _, result = pf.add_new_pet(auth_key, name, animal_type, age, pet_photo)
+        status, result = pf.set_photo_pet(auth_key, result['pets'][0]['id'], pet_photo)
+    assert status == 400 or status == 500
+
+
+def test_set_other_pet_photo_invalid_auth_key_10(name='Smuffy', animal_type='cat', age='1', pet_photo='images/cat1.jpg'):
+    """Проверяем возможность добавления фото при не корректном авторизационном ключе"""
+    _, auth_key = pf.get_api_key(valid_email, valid_password)
+    status, result = pf.get_list_of_pets(auth_key, filter='')
+    auth_key['key'] += 'xx'
+
+    if len(result['pets']) > 0:
+        status, result = pf.set_photo_pet(auth_key, result['pets'][0]['id'], pet_photo)
+    else:
+        _, result = pf.add_new_pet(auth_key, name, animal_type, age, pet_photo)
+        status, result = pf.set_photo_pet(auth_key, result['pets'][0]['id'], pet_photo)
+    assert status == 403
